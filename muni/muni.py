@@ -59,10 +59,14 @@ if __name__ == "__main__":
                 try:
                     if isinstance(direction['stop'], list):
                         for direction_stop in direction['stop']:
-                            stop_direction_dict[direction_stop['@tag']] = direction['@name']
+                            stop_direction_dict[direction_stop['@tag']] = (
+                                {'direction_tag': direction['@tag'], 
+                                'direction_name': direction['@name']})
                     elif isinstance(direction['stop'], str):
                         direction_stop = direction['stop'] 
-                        stop_direction_dict[direction_stop['@tag']] = direction['@name']
+                        stop_direction_dict[direction_stop['@tag']] = (
+                            {'direction_tag': direction['@tag'], 
+                            'direction_name': direction['@name']})
                     else:
                         print("unexpected type of direction['stop']: %s" % direction['stop'])
                 except:
@@ -72,10 +76,15 @@ if __name__ == "__main__":
             for stop in route_configs['body']['route']['stop']:
                 # store route into the route config
                 stop['route'] = route['@tag']
+                # store location and remove @lon and @lat 
+                stop['location'] = (float(stop['@lon']), float(stop['@lat']))
+                del stop['@lon'], stop['@lat']
                 if stop_direction_dict.get(stop['@tag']):
-                    stop['direction'] = stop_direction_dict[stop['@tag']]
+                    stop.update(stop_direction_dict[stop['@tag']])
                     print("saving %s" % stop)
                     route_configs_collection.insert(stop)
                 else:
                     print("not saving %s" % stop)
 
+    # generate geospatial indices
+    route_configs_collection.ensure_index([('location', pymongo.GEO2D)], unique=False)
