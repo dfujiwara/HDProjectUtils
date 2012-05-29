@@ -1,40 +1,28 @@
 import sys     
 import pymongo
-import requests
-from third_party import xml2json
-import json
+from common import utils
+from common import config
 
 MUNI_ROUTE_LIST_URL = 'http://webservices.nextbus.com/service/publicXMLFeed?command=routeList&a=sf-muni'
 MUNI_ROUTE_CONFIG_URL = 'http://webservices.nextbus.com/service/publicXMLFeed?command=routeConfig&a=sf-muni&r=%s'
 
-def get_url_resource(url):
-    r = requests.get(url)
-    if r.status_code != 200:
-        return None
-    json_string = xml2json.xml2json(r.text)
-    try:
-        result = json.loads(json_string)
-    except:
-        print("failed to decode json string")
-        return None
-    return result
-
 def get_route_list():
-    routes = get_url_resource(MUNI_ROUTE_LIST_URL)
-    if not (routes and routes['body'] and routes['body']['route']):
+    routes = utils.get_url_resource(MUNI_ROUTE_LIST_URL)
+    if not (routes and 'body' in routes and 'route' in routes['body']):
         return None
-    return routes 
+    return routes['body']['route'] 
 
 def get_route_config(route):
-    route_configs = get_url_resource(MUNI_ROUTE_CONFIG_URL % route)
-    if not (route_configs and route_configs['body'] and route_configs['body']['route']
-        and route_configs['body']['route']['stop']):
+    route_configs = utils.get_url_resource(MUNI_ROUTE_CONFIG_URL % route)
+    if not (route_configs and 'body' in route_configs and 
+        'route' in route_configs['body'] and
+        'stop' in route_configs['body']['route']):
         return None
-    return route_configs 
+    return route_configs['body']['route'] 
 
 if __name__ == "__main__":
-    #m = pymongo.Connection(MONGO_URL)
-    m = pymongo.Connection()
+    m = pymongo.Connection(config.MONGO_URL)
+    #m = pymongo.Connection()
     db = m['hd_project']
     routes_collection = db['muni_routes']
     route_configs_collection = db['muni_route_configs']
@@ -48,13 +36,13 @@ if __name__ == "__main__":
         print("no routes")
         sys.exit(-1)
     
-    for route in routes['body']['route']:
+    for route in routes:
         routes_collection.insert(route)
         route_configs = get_route_config(route['@tag'])
         if route_configs:
             # map stop tag to direction
             stop_direction_dict = {}
-            for direction in route_configs['body']['route']['direction']:
+            for direction in route_configs['direction']:
                 # handle the case where there is only one stop
                 try:
                     if isinstance(direction['stop'], list):
@@ -73,7 +61,7 @@ if __name__ == "__main__":
                     print("ERROR!!!!!!!!!!!! %s" % direction)
 
             # store information
-            for stop in route_configs['body']['route']['stop']:
+            for stop in route_configs['stop']:
                 # store route into the route config
                 stop['route'] = route['@tag']
                 # store location and remove @lon and @lat 
