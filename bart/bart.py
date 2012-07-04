@@ -32,8 +32,8 @@ def get_routes_info():
     return routes['root']['routes']['route']
 
 if __name__ == "__main__":
-    #m = pymongo.Connection(config.MONGO_URL)
-    m = pymongo.Connection()
+    m = pymongo.Connection(config.MONGO_URL)
+    #m = pymongo.Connection()
     db = m['hd_project']
     stations_collection = db['bart_stations']
 
@@ -59,7 +59,7 @@ if __name__ == "__main__":
 
     routes = get_routes_info()
     if not routes:
-        print("no stations")
+        print("no routes")
         sys.exit(-1)
 
     # retrieve all routes information
